@@ -51,7 +51,7 @@ with st.expander("会议基本信息", expanded=True):
 
     # 参会人员放在最后，使用全宽度
     st.markdown("---")  # 添加分隔线
-    options = ["张斌", "侯亚丽", "卢杰", "赵静", "李应龙", "肖涛", "任安安", "权昊", "李重瑛", "梁靖帆", "潘首文",
+    options = ["张斌", "侯亚丽", "卢杰", "赵静", "李应龙", "肖涛", "任安安", "权昊", "李重瑛", "梁靖帆", "潘首文", "王大韬"
                "熊文江"]
     default_selected = options
     participants = st.multiselect("参会人员", options, default_selected)
