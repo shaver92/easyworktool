@@ -1,0 +1,3 @@
+1 补充.env
+2 按照requirements.txt安装依赖
+3 执行命令 streamlit run streamlit_mcp_chat.py

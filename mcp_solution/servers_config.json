@@ -1,0 +1,26 @@
+{
+  "mcpServers": {
+    "calculator": {
+      "command": "python",
+      "args": ["calculatorMCPServer.py"],
+      "env": null
+    },
+    "amap-maps": {
+      "command": "npx",
+      "args": ["-y", "@amap/amap-maps-mcp-server"],
+      "env": {
+        "AMAP_MAPS_API_KEY": "${AMAP_MAPS_API_KEY}"
+      }
+    },
+    "sqlite": {
+      "command": "python",
+      "args": ["sqliteMCPServer.py"],
+      "env": null
+    },
+    "shopping_mall_query": {
+      "command": "python",
+      "args": ["flexible_query_mcpserver.py"],
+      "env": null
+    }
+  }
+}
