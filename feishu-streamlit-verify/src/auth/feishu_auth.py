@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from urllib.parse import quote
 import requests
 import streamlit as st
 
@@ -100,3 +101,20 @@ def resolve_user(config: dict) -> dict:
         "email": "",
         "source": "demo",
     }
+
+
+def build_oauth_login_url(config: dict, state: str = "mms_login") -> str:
+    feishu_cfg = config.get("feishu", {})
+    app_id = feishu_cfg.get("app_id", "")
+    redirect_uri = feishu_cfg.get("redirect_uri", "")
+    base_url = feishu_cfg.get("base_url", "")
+    if not (app_id and redirect_uri and base_url):
+        return ""
+    encoded_redirect_uri = quote(redirect_uri, safe="")
+    encoded_state = quote(state, safe="")
+    return (
+        f"{base_url}/authen/v1/index"
+        f"?app_id={app_id}"
+        f"&redirect_uri={encoded_redirect_uri}"
+        f"&state={encoded_state}"
+    )

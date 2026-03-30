@@ -4,7 +4,7 @@ from datetime import datetime
 
 import streamlit as st
 
-from src.auth.feishu_auth import resolve_user
+from src.auth.feishu_auth import build_oauth_login_url, resolve_user
 from src.auth.rbac import is_admin
 from src.config import load_config, validate_config
 from src.db.repository import Repository
@@ -64,6 +64,14 @@ st.title(cfg["app"]["name"])
 st.caption(f"当前用户：{user['name']} ({user['open_id']}) | 角色：{role} | 来源：{user.get('source', 'unknown')}")
 if user.get("source") == "demo":
     st.warning("当前为演示身份。可通过 URL 传入 open_id，或在飞书工作台通过 OAuth 回调参数 code 登录。")
+    oauth_url = build_oauth_login_url(cfg)
+    if oauth_url:
+        st.link_button("使用飞书授权登录（获取真实用户）", oauth_url, type="primary")
+    with st.expander("登录诊断信息", expanded=False):
+        st.write("当前 URL 查询参数：", dict(st.query_params))
+        st.write(
+            "提示：若没有 `code` 参数，通常说明当前进入的是应用主页直达链接，未经过 OAuth 授权页。"
+        )
 if cfg_warnings:
     with st.expander("配置检查告警", expanded=True):
         for w in cfg_warnings:
