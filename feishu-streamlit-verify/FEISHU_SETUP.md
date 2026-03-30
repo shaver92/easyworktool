@@ -115,9 +115,11 @@ FEISHU_REDIRECT_URI=https://wzgl.<your-domain>/
 
 - 在 `.env` 中设置：
   - `NOTIFY_ENABLE=true`
-  - `FEISHU_TENANT_ACCESS_TOKEN=<tenant_token>`
+  - `FEISHU_APP_ID=cli_xxx`
+  - `FEISHU_APP_SECRET=xxx`
   - `APP_HOME_URL=https://<你的域名>/`
   - `NOTIFY_ADMIN_CC_OPEN_IDS=ou_xxx`（逾期抄送管理员）
+- 系统会自动根据 `FEISHU_APP_ID/FEISHU_APP_SECRET` 换取 `tenant_access_token`，通常不需要手填 `FEISHU_TENANT_ACCESS_TOKEN`。
 - 消息类型默认采用交互卡片，用户可直接点击“打开系统处理”。
 - 按钮会携带借用单定位参数（`page` + `order_id`），打开后会直接高亮对应单据。
 - 当前按钮默认跳转到 `借用单详情` 页面，可查看该单审计轨迹与通知轨迹。

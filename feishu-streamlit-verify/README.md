@@ -22,13 +22,15 @@ pip install -r requirements.txt
 
 - `APP_REQUIRE_BORROW_APPROVAL`: 是否启用借用审批流
 - `RBAC_ADMIN_OPEN_IDS`: 管理员 `open_id` 白名单
+- `RBAC_ADMIN_EMAILS`: 管理员邮箱白名单（可与 `open_id` 并用）
 - `NOTIFY_ENABLE`: 是否启用飞书发消息（默认关闭）
-- `FEISHU_TENANT_ACCESS_TOKEN`: 启用通知时必填
+- `FEISHU_APP_ID` / `FEISHU_APP_SECRET`: 用于 OAuth 与自动换取 `tenant_access_token`
 - `APP_HOME_URL`: 卡片消息中的“打开系统”跳转地址
 - `NOTIFY_ADMIN_CC_OPEN_IDS`: 逾期时抄送管理员
 - `NOTIFY_USE_TEMPLATE_CARD`: 是否启用飞书模板卡片（默认 false，使用内置交互卡片）
 
 说明：`.env` 的配置会覆盖 `config/app_config.toml` 中的同名项。
+系统会优先自动获取 `tenant_access_token`，只有在特殊场景下才需要手动设置 `FEISHU_TENANT_ACCESS_TOKEN`。
 
 提醒消息中的按钮会自动携带 `page` 与 `order_id` 参数，支持进入系统后自动定位到对应借用单。
 当前默认直达 `借用单详情` 页面，展示该单的状态、审计轨迹、通知轨迹，并支持在详情页执行归还。
@@ -117,3 +119,11 @@ src/
 ## 9) 上线前核对
 
 - 生产发布请先逐项核对：`PRODUCTION_CHECKLIST.md`
+
+## 10) RBAC 管理员配置引导
+
+- 进入系统的 `系统设置` 页面，复制“管理员配置引导（可复制到 .env）”中的两行。
+- 将其粘贴到 `.env` 中：
+  - `RBAC_ADMIN_OPEN_IDS=ou_xxx,ou_yyy`
+  - `RBAC_ADMIN_EMAILS=a@corp.com,b@corp.com`
+- 至少配置一个 `open_id` 或邮箱；推荐优先配置 `open_id`。

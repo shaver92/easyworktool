@@ -3,6 +3,7 @@ from __future__ import annotations
 from pathlib import Path
 import os
 import tomllib
+import requests
 from dotenv import load_dotenv
 
 
@@ -78,13 +79,39 @@ def _apply_env_overrides(cfg: dict) -> dict:
         "NOTIFY_USE_TEMPLATE_CARD",
         cfg["notify"].get("use_template_card", False),
     )
+    _auto_fill_feishu_token(cfg)
     return cfg
+
+
+def _auto_fill_feishu_token(cfg: dict) -> None:
+    feishu_cfg = cfg.get("feishu", {})
+    if feishu_cfg.get("tenant_access_token"):
+        return
+    app_id = feishu_cfg.get("app_id", "")
+    app_secret = feishu_cfg.get("app_secret", "")
+    base_url = feishu_cfg.get("base_url", "")
+    if not (app_id and app_secret and base_url):
+        return
+    try:
+        resp = requests.post(
+            f"{base_url}/auth/v3/app_access_token/internal",
+            json={"app_id": app_id, "app_secret": app_secret},
+            timeout=8,
+        )
+        if not resp.ok:
+            return
+        payload = resp.json()
+        token = payload.get("tenant_access_token", "")
+        if token:
+            cfg["feishu"]["tenant_access_token"] = token
+    except requests.RequestException:
+        return
 
 
 def validate_config(cfg: dict) -> list[str]:
     warnings: list[str] = []
     if cfg["notify"].get("enable", False) and not cfg["feishu"].get("tenant_access_token"):
-        warnings.append("已启用通知，但 FEISHU_TENANT_ACCESS_TOKEN 为空，通知将发送失败。")
+        warnings.append("已启用通知，但无法自动获取 tenant_access_token，请检查 FEISHU_APP_ID/FEISHU_APP_SECRET。")
     if not cfg["rbac"].get("admin_open_ids"):
         warnings.append("未配置 RBAC_ADMIN_OPEN_IDS，当前将无法识别管理员。")
     if cfg["app"].get("require_borrow_approval", False) and not cfg["rbac"].get("admin_open_ids"):

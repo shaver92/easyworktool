@@ -107,4 +107,4 @@ elif selected_page == "管理员-借用管理":
 elif selected_page == "管理员-日志中心":
     render_admin_logs(audit_service.list_logs(), notify_service.list_notifications(), notify_service)
 elif selected_page == "系统设置":
-    render_settings(cfg)
+    render_settings(cfg, user)

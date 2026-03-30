@@ -2,7 +2,7 @@
 
 ## 1. 环境与配置
 - [ ] 已创建并填写 `.env`，至少包含：`FEISHU_APP_ID`、`FEISHU_APP_SECRET`、`RBAC_ADMIN_OPEN_IDS`
-- [ ] 如果要发飞书消息：`NOTIFY_ENABLE=true` 且 `FEISHU_TENANT_ACCESS_TOKEN` 已配置
+- [ ] 如果要发飞书消息：`NOTIFY_ENABLE=true`，并确保 `FEISHU_APP_ID/FEISHU_APP_SECRET` 正确（系统会自动获取 `tenant_access_token`）
 - [ ] `APP_HOME_URL` 已设置为公网可访问地址（例如 `https://wzgl.xxx.com`）
 - [ ] 如启用审批流：`APP_REQUIRE_BORROW_APPROVAL=true`，且管理员白名单不为空
 - [ ] 数据库路径 `APP_DB_PATH` 已确认，并已纳入备份策略
