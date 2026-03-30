@@ -72,6 +72,9 @@ if user.get("source") == "demo":
         st.write("当前 URL 查询参数：", qp_debug)
         if qp_debug.get("code"):
             st.write("检测到 code 已回传，但用户仍为 demo，通常是 code 换 token 或用户信息请求失败。")
+            auth_debug = st.session_state.get("auth_debug", {})
+            if auth_debug:
+                st.write("OAuth 调用明细：", auth_debug)
         else:
             st.write("未检测到 code，通常说明当前进入的是应用主页直达链接，未经过 OAuth 授权页。")
 if cfg_warnings:
