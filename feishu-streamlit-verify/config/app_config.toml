@@ -1,0 +1,28 @@
+[app]
+name = "飞书物资管理系统"
+db_path = "data/materials.db"
+timezone = "Asia/Shanghai"
+home_url = "http://localhost:8501"
+require_borrow_approval = false
+
+[feishu]
+app_id = ""
+app_secret = ""
+tenant_access_token = ""
+base_url = "https://open.feishu.cn/open-apis"
+redirect_uri = ""
+
+[rbac]
+admin_open_ids = ["ou_admin_demo"]
+admin_emails = []
+
+[notify]
+enable = false
+days_before_due = 3
+overdue_every_hours = 24
+retry_limit = 3
+due_template = "【到期提醒】你借用的物资即将到期，请尽快归还。"
+overdue_template = "【逾期提醒】你借用的物资已逾期，请立即归还并在系统确认。"
+manual_template = "【催还提醒】管理员发起了催还，请尽快处理该借用单。"
+admin_cc_open_ids = []
+use_template_card = false

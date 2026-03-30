@@ -1,0 +1,7 @@
+tunnel: material-management
+credentials-file: /Users/<your-user>/.cloudflared/<tunnel-uuid>.json
+
+ingress:
+  - hostname: wzgl.<your-domain>
+    service: http://localhost:8501
+  - service: http_status:404
