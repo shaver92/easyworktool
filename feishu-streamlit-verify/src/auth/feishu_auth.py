@@ -86,7 +86,11 @@ def _exchange_code_for_user(config: dict, code: str) -> tuple[dict, dict]:
         "oauth_ok": oauth_meta.get("ok"),
         "oauth_code": oauth_payload.get("code"),
         "oauth_msg": oauth_payload.get("msg"),
+        "oauth_keys": sorted(list(oauth_payload.keys())) if isinstance(oauth_payload, dict) else [],
     }
+    oauth_data = oauth_payload.get("data", {})
+    if isinstance(oauth_data, dict):
+        debug["oauth_data_keys"] = sorted(list(oauth_data.keys()))
     # Backward-compatible fallback for tenants/environments with old behavior.
     if not oauth_payload.get("data", {}).get("access_token"):
         app_token_payload, app_token_meta = _safe_post_json_with_meta(
@@ -109,7 +113,21 @@ def _exchange_code_for_user(config: dict, code: str) -> tuple[dict, dict]:
             debug["fallback_oauth_code"] = oauth_payload.get("code")
             debug["fallback_oauth_msg"] = oauth_payload.get("msg")
     data = oauth_payload.get("data", {})
-    user_access_token = data.get("access_token", "") or oauth_payload.get("access_token", "")
+    user_access_token = (
+        data.get("access_token", "")
+        or oauth_payload.get("access_token", "")
+        or data.get("user_access_token", "")
+        or oauth_payload.get("user_access_token", "")
+    )
+    # Some responses may already contain user identity fields.
+    open_id_from_oauth = data.get("open_id", "") or oauth_payload.get("open_id", "")
+    if open_id_from_oauth:
+        debug["step"] = "ok_open_id_from_oauth"
+        return {
+            "open_id": open_id_from_oauth,
+            "name": data.get("name", "") or oauth_payload.get("name", "FeishuUser"),
+            "email": data.get("email", "") or oauth_payload.get("email", ""),
+        }, debug
     if not user_access_token:
         debug["step"] = "oauth_token_missing_access_token"
         return {}, debug
