@@ -3,6 +3,7 @@ from __future__ import annotations
 from datetime import datetime
 
 import streamlit as st
+import streamlit.components.v1 as components
 
 from src.auth.feishu_auth import build_oauth_login_url, resolve_user
 from src.auth.rbac import is_admin
@@ -77,14 +78,20 @@ if user.get("source") == "demo":
     if should_auto_oauth:
         st.session_state["auto_oauth_triggered"] = True
         st.info("正在自动跳转飞书授权页面...")
-        st.markdown(
+        components.html(
             f"""
             <script>
-            window.top.location.href = "{oauth_url}";
+            const target = {oauth_url!r};
+            try {{
+              window.top.location.replace(target);
+            }} catch (e) {{
+              window.location.replace(target);
+            }}
             </script>
             """,
-            unsafe_allow_html=True,
+            height=0,
         )
+        st.link_button("若未自动跳转，请点此授权", oauth_url, type="secondary")
         st.stop()
     if oauth_url:
         st.link_button("使用飞书授权登录（获取真实用户）", oauth_url, type="primary")
