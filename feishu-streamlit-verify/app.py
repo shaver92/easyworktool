@@ -64,11 +64,32 @@ st.title(cfg["app"]["name"])
 st.caption(f"当前用户：{user['name']} ({user['open_id']}) | 角色：{role} | 来源：{user.get('source', 'unknown')}")
 if user.get("source") == "demo":
     st.warning("当前为演示身份。可通过 URL 传入 open_id，或在飞书工作台通过 OAuth 回调参数 code 登录。")
+    qp = st.query_params
     oauth_url = build_oauth_login_url(cfg)
+    should_auto_oauth = (
+        bool(oauth_url)
+        and not qp.get("code")
+        and not qp.get("open_id")
+        and not qp.get("user_access_token")
+        and not qp.get("no_auto_oauth")
+        and not st.session_state.get("auto_oauth_triggered", False)
+    )
+    if should_auto_oauth:
+        st.session_state["auto_oauth_triggered"] = True
+        st.info("正在自动跳转飞书授权页面...")
+        st.markdown(
+            f"""
+            <script>
+            window.top.location.href = "{oauth_url}";
+            </script>
+            """,
+            unsafe_allow_html=True,
+        )
+        st.stop()
     if oauth_url:
         st.link_button("使用飞书授权登录（获取真实用户）", oauth_url, type="primary")
     with st.expander("登录诊断信息", expanded=False):
-        qp_debug = dict(st.query_params)
+        qp_debug = dict(qp)
         st.write("当前 URL 查询参数：", qp_debug)
         if qp_debug.get("code"):
             st.write("检测到 code 已回传，但用户仍为 demo，通常是 code 换 token 或用户信息请求失败。")
