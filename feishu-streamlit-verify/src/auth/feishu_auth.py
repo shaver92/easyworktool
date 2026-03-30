@@ -36,22 +36,33 @@ def _exchange_code_for_user(config: dict, code: str) -> dict:
     base_url = feishu_cfg.get("base_url", "")
     app_id = feishu_cfg.get("app_id", "")
     app_secret = feishu_cfg.get("app_secret", "")
+    redirect_uri = feishu_cfg.get("redirect_uri", "")
     if not (base_url and app_id and app_secret):
-        return {}
-
-    app_token_payload = _safe_post_json(
-        f"{base_url}/auth/v3/app_access_token/internal",
-        {"app_id": app_id, "app_secret": app_secret},
-    )
-    app_access_token = app_token_payload.get("app_access_token", "")
-    if not app_access_token:
         return {}
 
     oauth_payload = _safe_post_json(
         f"{base_url}/authen/v2/oauth/token",
-        {"grant_type": "authorization_code", "code": code},
-        headers={"Authorization": f"Bearer {app_access_token}"},
+        {
+            "grant_type": "authorization_code",
+            "client_id": app_id,
+            "client_secret": app_secret,
+            "code": code,
+            "redirect_uri": redirect_uri,
+        },
     )
+    # Backward-compatible fallback for tenants/environments with old behavior.
+    if not oauth_payload.get("data", {}).get("access_token"):
+        app_token_payload = _safe_post_json(
+            f"{base_url}/auth/v3/app_access_token/internal",
+            {"app_id": app_id, "app_secret": app_secret},
+        )
+        app_access_token = app_token_payload.get("app_access_token", "")
+        if app_access_token:
+            oauth_payload = _safe_post_json(
+                f"{base_url}/authen/v2/oauth/token",
+                {"grant_type": "authorization_code", "code": code},
+                headers={"Authorization": f"Bearer {app_access_token}"},
+            )
     data = oauth_payload.get("data", {})
     user_access_token = data.get("access_token", "")
     if not user_access_token:

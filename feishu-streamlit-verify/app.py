@@ -68,10 +68,12 @@ if user.get("source") == "demo":
     if oauth_url:
         st.link_button("使用飞书授权登录（获取真实用户）", oauth_url, type="primary")
     with st.expander("登录诊断信息", expanded=False):
-        st.write("当前 URL 查询参数：", dict(st.query_params))
-        st.write(
-            "提示：若没有 `code` 参数，通常说明当前进入的是应用主页直达链接，未经过 OAuth 授权页。"
-        )
+        qp_debug = dict(st.query_params)
+        st.write("当前 URL 查询参数：", qp_debug)
+        if qp_debug.get("code"):
+            st.write("检测到 code 已回传，但用户仍为 demo，通常是 code 换 token 或用户信息请求失败。")
+        else:
+            st.write("未检测到 code，通常说明当前进入的是应用主页直达链接，未经过 OAuth 授权页。")
 if cfg_warnings:
     with st.expander("配置检查告警", expanded=True):
         for w in cfg_warnings:
