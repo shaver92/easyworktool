@@ -109,7 +109,7 @@ def _exchange_code_for_user(config: dict, code: str) -> tuple[dict, dict]:
             debug["fallback_oauth_code"] = oauth_payload.get("code")
             debug["fallback_oauth_msg"] = oauth_payload.get("msg")
     data = oauth_payload.get("data", {})
-    user_access_token = data.get("access_token", "")
+    user_access_token = data.get("access_token", "") or oauth_payload.get("access_token", "")
     if not user_access_token:
         debug["step"] = "oauth_token_missing_access_token"
         return {}, debug
