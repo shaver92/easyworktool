@@ -91,8 +91,17 @@ def _exchange_code_for_user(config: dict, code: str) -> tuple[dict, dict]:
     oauth_data = oauth_payload.get("data", {})
     if isinstance(oauth_data, dict):
         debug["oauth_data_keys"] = sorted(list(oauth_data.keys()))
+    data = oauth_payload.get("data", {})
+    user_access_token = (
+        data.get("access_token", "")
+        or oauth_payload.get("access_token", "")
+        or data.get("user_access_token", "")
+        or oauth_payload.get("user_access_token", "")
+    )
+    if user_access_token:
+        debug["token_source"] = "primary_oauth"
     # Backward-compatible fallback for tenants/environments with old behavior.
-    if not oauth_payload.get("data", {}).get("access_token"):
+    if not user_access_token:
         app_token_payload, app_token_meta = _safe_post_json_with_meta(
             f"{base_url}/auth/v3/app_access_token/internal",
             {"app_id": app_id, "app_secret": app_secret},
@@ -112,13 +121,15 @@ def _exchange_code_for_user(config: dict, code: str) -> tuple[dict, dict]:
             debug["fallback_oauth_ok"] = oauth_meta.get("ok")
             debug["fallback_oauth_code"] = oauth_payload.get("code")
             debug["fallback_oauth_msg"] = oauth_payload.get("msg")
-    data = oauth_payload.get("data", {})
-    user_access_token = (
-        data.get("access_token", "")
-        or oauth_payload.get("access_token", "")
-        or data.get("user_access_token", "")
-        or oauth_payload.get("user_access_token", "")
-    )
+        data = oauth_payload.get("data", {})
+        user_access_token = (
+            data.get("access_token", "")
+            or oauth_payload.get("access_token", "")
+            or data.get("user_access_token", "")
+            or oauth_payload.get("user_access_token", "")
+        )
+        if user_access_token:
+            debug["token_source"] = "fallback_oauth"
     # Some responses may already contain user identity fields.
     open_id_from_oauth = data.get("open_id", "") or oauth_payload.get("open_id", "")
     if open_id_from_oauth:
