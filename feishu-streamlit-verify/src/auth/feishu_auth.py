@@ -5,6 +5,24 @@ import requests
 import streamlit as st
 
 
+def _save_session_user(user: dict) -> None:
+    st.session_state["resolved_user"] = {
+        "open_id": user.get("open_id", ""),
+        "name": user.get("name", "FeishuUser"),
+        "email": user.get("email", ""),
+        "source": user.get("source", "unknown"),
+    }
+
+
+def _load_session_user() -> dict | None:
+    cached = st.session_state.get("resolved_user")
+    if not isinstance(cached, dict):
+        return None
+    if not cached.get("open_id"):
+        return None
+    return cached
+
+
 def _safe_get_json(url: str, headers: dict | None = None, params: dict | None = None) -> dict:
     try:
         resp = requests.get(url, headers=headers, params=params, timeout=8)
@@ -165,12 +183,14 @@ def resolve_user(config: dict) -> dict:
     name = qp.get("name")
     email = qp.get("email")
     if open_id:
-        return {
+        user = {
             "open_id": str(open_id),
             "name": str(name or "FeishuUser"),
             "email": str(email or ""),
             "source": "query_params",
         }
+        _save_session_user(user)
+        return user
 
     feishu_cfg = config.get("feishu", {})
     code = qp.get("code")
@@ -178,23 +198,31 @@ def resolve_user(config: dict) -> dict:
         data, debug = _exchange_code_for_user(config, str(code))
         st.session_state["auth_debug"] = debug
         if data.get("open_id"):
-            return {
+            user = {
                 "open_id": data.get("open_id"),
                 "name": data.get("name", "FeishuUser"),
                 "email": data.get("email", ""),
                 "source": "feishu_oauth_code",
             }
+            _save_session_user(user)
+            return user
 
     user_access_token = qp.get("user_access_token")
     if user_access_token and feishu_cfg.get("base_url"):
         data = _fetch_user_by_access_token(feishu_cfg["base_url"], str(user_access_token))
         if data.get("open_id"):
-            return {
+            user = {
                 "open_id": data.get("open_id"),
                 "name": data.get("name", "FeishuUser"),
                 "email": data.get("email", ""),
                 "source": "feishu_api",
             }
+            _save_session_user(user)
+            return user
+
+    cached_user = _load_session_user()
+    if cached_user:
+        return cached_user
 
     return {
         "open_id": "ou_guest_demo",
