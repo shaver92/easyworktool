@@ -4,18 +4,27 @@ import io
 import csv
 import streamlit as st
 
+from src.ui.i18n import localize_rows, t
+
 
 def render_admin_materials(user: dict, materials: list[dict], material_service, audit_service, repo) -> None:
-    st.subheader("管理员 - 物资管理")
-    with st.expander("新增物资", expanded=False):
+    lang = st.session_state.get("lang", "zh")
+    st.subheader(t("admin_materials", lang))
+    mode = st.radio("页面模式" if lang == "zh" else "Page Mode", [t("view_only", lang), t("operate_only", lang)], horizontal=True, key="admin_material_mode")
+
+    if mode == t("view_only", lang):
+        st.dataframe(localize_rows(materials, lang), use_container_width=True, hide_index=True)
+        return
+
+    with st.expander("新增物资" if lang == "zh" else "Create Material", expanded=True):
         col1, col2 = st.columns(2)
-        code = col1.text_input("物资编码")
-        name = col2.text_input("物资名称")
-        category = col1.text_input("分类", value="未分类")
-        spec = col2.text_input("规格")
-        location = col1.text_input("位置")
-        total_qty = col2.number_input("总库存", min_value=0, value=1)
-        if st.button("保存物资"):
+        code = col1.text_input("物资编码" if lang == "zh" else "Code")
+        name = col2.text_input("物资名称" if lang == "zh" else "Name")
+        category = col1.text_input("分类" if lang == "zh" else "Category", value="未分类" if lang == "zh" else "General")
+        spec = col2.text_input("规格" if lang == "zh" else "Spec")
+        location = col1.text_input("位置" if lang == "zh" else "Location")
+        total_qty = col2.number_input("总库存" if lang == "zh" else "Total Qty", min_value=0, value=1)
+        if st.button("保存物资" if lang == "zh" else "Save Material"):
             payload = {
                 "code": code,
                 "name": name,
@@ -29,7 +38,7 @@ def render_admin_materials(user: dict, materials: list[dict], material_service, 
             }
             material_id = material_service.add_material(payload)
             audit_service.log(user["open_id"], "material_create", "material", str(material_id), None, payload)
-            st.success("新增成功")
+            st.success("新增成功" if lang == "zh" else "Created.")
             st.rerun()
 
     with st.expander("CSV 批量导入", expanded=False):
@@ -64,13 +73,21 @@ def render_admin_materials(user: dict, materials: list[dict], material_service, 
                 st.success(f"导入完成，共 {len(rows)} 条")
                 st.rerun()
 
-    st.markdown("### 物资状态维护")
-    st.dataframe(materials, use_container_width=True, hide_index=True)
+    st.markdown("### " + ("物资状态维护" if lang == "zh" else "Material Status Maintenance"))
+    st.dataframe(localize_rows(materials, lang), use_container_width=True, hide_index=True)
     if materials:
         selected_id = st.selectbox("选择物资", [m["id"] for m in materials], key="admin_material_id")
         target = next((m for m in materials if m["id"] == selected_id), None)
         if target:
-            status = st.selectbox("状态", ["available", "maintenance", "retired", "off_shelf"], index=0)
+            status_pairs = [
+                ("available", "可借" if lang == "zh" else "Available"),
+                ("maintenance", "维护中" if lang == "zh" else "Maintenance"),
+                ("retired", "停用" if lang == "zh" else "Retired"),
+                ("off_shelf", "下架" if lang == "zh" else "Off Shelf"),
+            ]
+            status_label_to_value = {label: value for value, label in status_pairs}
+            status_label = st.selectbox("状态" if lang == "zh" else "Status", [label for _, label in status_pairs], index=0)
+            status = status_label_to_value[status_label]
             delta = st.number_input("库存调整量（可负数）", value=0, step=1)
             c1, c2 = st.columns(2)
             if c1.button("更新状态"):

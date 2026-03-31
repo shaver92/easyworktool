@@ -2,6 +2,8 @@ from __future__ import annotations
 
 import streamlit as st
 
+from src.ui.i18n import localize_rows
+
 
 def render_order_detail(
     user: dict,
@@ -13,7 +15,8 @@ def render_order_detail(
     audit_service,
     notify_service,
 ) -> None:
-    st.subheader("借用单详情")
+    lang = st.session_state.get("lang", "zh")
+    st.subheader("借用单详情" if lang == "zh" else "Order Detail")
     if not order_detail:
         st.info("请选择或传入有效的借用单 ID")
         return
@@ -96,8 +99,8 @@ def render_order_detail(
             st.success("催还提醒已发送")
             st.rerun()
 
-    t1, t2 = st.tabs(["审计轨迹", "通知轨迹"])
+    t1, t2 = st.tabs(["审计轨迹" if lang == "zh" else "Audit Trail", "通知轨迹" if lang == "zh" else "Notify Trail"])
     with t1:
-        st.dataframe(order_audit_logs, use_container_width=True, hide_index=True)
+        st.dataframe(localize_rows(order_audit_logs, lang), use_container_width=True, hide_index=True)
     with t2:
-        st.dataframe(order_notifications, use_container_width=True, hide_index=True)
+        st.dataframe(localize_rows(order_notifications, lang), use_container_width=True, hide_index=True)

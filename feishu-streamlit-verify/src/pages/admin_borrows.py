@@ -2,18 +2,26 @@ from __future__ import annotations
 
 import streamlit as st
 
+from src.ui.i18n import localize_rows, t
+
 
 def render_admin_borrows(user: dict, orders: list[dict], borrow_service, audit_service, focus_order_id: int | None = None) -> None:
-    st.subheader("管理员 - 借用管理")
+    lang = st.session_state.get("lang", "zh")
+    st.subheader(t("admin_borrows", lang))
+    mode = st.radio("页面模式" if lang == "zh" else "Page Mode", [t("view_only", lang), t("operate_only", lang)], horizontal=True, key="admin_borrow_mode")
     if focus_order_id is not None:
         matched = [o for o in orders if int(o["id"]) == int(focus_order_id)]
         if matched:
             st.info(f"已定位到借用单 #{focus_order_id}")
-            st.dataframe(matched, use_container_width=True, hide_index=True)
+            st.dataframe(localize_rows(matched, lang), use_container_width=True, hide_index=True)
         else:
             st.warning(f"未找到借用单 #{focus_order_id}")
 
-    st.dataframe(orders, use_container_width=True, hide_index=True)
+    if mode == t("view_only", lang):
+        st.dataframe(localize_rows(orders, lang), use_container_width=True, hide_index=True)
+        return
+
+    st.dataframe(localize_rows(orders, lang), use_container_width=True, hide_index=True)
     pending = [o for o in orders if o["status"] == "pending_approval"]
     if pending:
         st.markdown("### 待审批")
