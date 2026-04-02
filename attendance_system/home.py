@@ -11,6 +11,44 @@ import pandas as pd
 from io import BytesIO
 from datetime import datetime, time
 
+
+def _parse_excel_clock_cell(v):
+    """将 Excel 读出的打卡时间统一为 datetime.time（列内常混有 time 与字符串）。"""
+    if pd.isna(v):
+        return pd.NaT
+    if isinstance(v, time):
+        return v
+    if isinstance(v, datetime):
+        return v.time()
+    if isinstance(v, pd.Timestamp):
+        return v.time()
+    if isinstance(v, str):
+        s = v.strip().replace("::", ":")
+        if not s:
+            return pd.NaT
+        for fmt in ("%H:%M:%S", "%H:%M", "%Y-%m-%d %H:%M:%S"):
+            try:
+                return datetime.strptime(s, fmt).time()
+            except ValueError:
+                continue
+        ts = pd.to_datetime(s, errors="coerce", format="mixed")
+        return pd.NaT if pd.isna(ts) else ts.time()
+    if isinstance(v, bool):
+        return pd.NaT
+    if isinstance(v, (int, float)):
+        x = float(v)
+        if not (x == x):  # NaN
+            return pd.NaT
+        if 0 <= x < 1:
+            secs = int(round(x * 86400)) % 86400
+            h, r = divmod(secs, 3600)
+            m, sec = divmod(r, 60)
+            return time(h, m, sec)
+        ts = pd.to_datetime(x, unit="D", origin="1899-12-30", errors="coerce")
+        return pd.NaT if pd.isna(ts) else ts.time()
+    return pd.NaT
+
+
 # 设置页面标题和布局
 st.set_page_config(page_title="考勤信息汇总系统", layout="wide")
 st.title("📊 考勤信息汇总系统")
@@ -71,7 +109,8 @@ if st.button("🔽 合并数据", key="merge_button"):
                     time_columns = ['上班打卡时间', '下班打卡时间']
                     for col in time_columns:
                         if col in df_all.columns:
-                            df_all[col] = pd.to_datetime(df_all[col], errors='coerce').dt.time
+                            # openpyxl 常把部分格读成 datetime.time，部分读成 str；整列 to_datetime 会把 time 变成 NaT
+                            df_all[col] = df_all[col].map(_parse_excel_clock_cell)
 
                     # 筛选异常考勤数据
                     if all(col in df_all.columns for col in ['上班打卡时间', '下班打卡时间']):
