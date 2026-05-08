@@ -5,7 +5,6 @@ from collections import defaultdict
 from datetime import datetime
 from io import BytesIO
 
-import pandas as pd
 import streamlit as st
 import streamlit.components.v1 as components
 from jinja2 import Environment, FileSystemLoader
@@ -13,100 +12,10 @@ from weasyprint import HTML
 
 # 项目根目录（本文件所在目录），模板与资源相对此路径加载
 _BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+MEETING_ROSTER_TXT = os.path.join(_BASE_DIR, "meeting_roster.txt")
 
-
-def _init_meeting_meta_keys():
-    if "ms_meeting_date" not in st.session_state:
-        st.session_state.ms_meeting_date = datetime.now().date()
-    if "ms_meeting_chair" not in st.session_state:
-        st.session_state.ms_meeting_chair = "李超"
-    if "ms_recorder" not in st.session_state:
-        st.session_state.ms_recorder = ""
-    if "ms_meeting_topic" not in st.session_state:
-        st.session_state.ms_meeting_topic = "日常工作讨论"
-    if "ms_meeting_location" not in st.session_state:
-        st.session_state.ms_meeting_location = ""
-    # 预览区「基本信息」镜像键（与 ms_* 同步，便于下方改完立刻驱动上方 HTML）
-    if "prev_basic_date" not in st.session_state:
-        st.session_state.prev_basic_date = st.session_state.ms_meeting_date
-    if "prev_basic_chair" not in st.session_state:
-        st.session_state.prev_basic_chair = st.session_state.ms_meeting_chair
-    if "prev_basic_recorder" not in st.session_state:
-        st.session_state.prev_basic_recorder = st.session_state.ms_recorder
-    if "prev_basic_mtopic" not in st.session_state:
-        st.session_state.prev_basic_mtopic = st.session_state.ms_meeting_topic
-    if "prev_basic_location" not in st.session_state:
-        st.session_state.prev_basic_location = st.session_state.ms_meeting_location
-
-
-def _mirror_ms_date_to_prev():
-    st.session_state.prev_basic_date = st.session_state.ms_meeting_date
-
-
-def _mirror_ms_chair_to_prev():
-    st.session_state.prev_basic_chair = st.session_state.ms_meeting_chair
-
-
-def _mirror_ms_recorder_to_prev():
-    st.session_state.prev_basic_recorder = st.session_state.ms_recorder
-
-
-def _mirror_ms_mtopic_to_prev():
-    st.session_state.prev_basic_mtopic = st.session_state.ms_meeting_topic
-
-
-def _mirror_ms_location_to_prev():
-    st.session_state.prev_basic_location = st.session_state.ms_meeting_location
-
-
-def _mirror_prev_date_to_ms():
-    st.session_state.ms_meeting_date = st.session_state.prev_basic_date
-
-
-def _mirror_prev_chair_to_ms():
-    st.session_state.ms_meeting_chair = st.session_state.prev_basic_chair
-
-
-def _mirror_prev_recorder_to_ms():
-    st.session_state.ms_recorder = st.session_state.prev_basic_recorder
-
-
-def _mirror_prev_mtopic_to_ms():
-    st.session_state.ms_meeting_topic = st.session_state.prev_basic_mtopic
-
-
-def _mirror_prev_location_to_ms():
-    st.session_state.ms_meeting_location = st.session_state.prev_basic_location
-
-
-def _flush_pending_preview_basic():
-    """预览里「保存基本信息」在同一次 run 里不能改已被上方控件占用的 ms_* key，故延后到下一轮最前面写入。"""
-    pending = st.session_state.pop("_pending_preview_basic", None)
-    if pending is None:
-        return False
-    st.session_state.ms_meeting_date = pending["ms_meeting_date"]
-    st.session_state.ms_meeting_chair = pending["ms_meeting_chair"]
-    st.session_state.ms_recorder = pending["ms_recorder"]
-    st.session_state.ms_meeting_topic = pending["ms_meeting_topic"]
-    st.session_state.ms_meeting_location = pending["ms_meeting_location"]
-    st.session_state.prev_basic_date = pending["ms_meeting_date"]
-    st.session_state.prev_basic_chair = pending["ms_meeting_chair"]
-    st.session_state.prev_basic_recorder = pending["ms_recorder"]
-    st.session_state.prev_basic_mtopic = pending["ms_meeting_topic"]
-    st.session_state.prev_basic_location = pending["ms_meeting_location"]
-    return True
-
-
-# 设置页面标题和布局（须为首个 st 调用）
-st.set_page_config(page_title="会议纪要系统", layout="wide")
-_init_meeting_meta_keys()
-_basic_saved_from_preview = _flush_pending_preview_basic()
-st.title(":coffee: 会议纪要系统")
-if _basic_saved_from_preview:
-    st.toast("基本信息已更新")
-
-# 固定名单：参会与缺席互斥（同一人不能同时出现在两个列表的可选项中）
-ROSTER = [
+# 首次尚无 txt 时，用此默认名单写入 meeting_roster.txt
+DEFAULT_ROSTER = [
     "张斌",
     "侯亚丽",
     "卢杰",
@@ -121,6 +30,87 @@ ROSTER = [
     "王大韬",
     "熊文江",
 ]
+
+
+def _parse_roster_lines(text):
+    seen = set()
+    out = []
+    for line in (text or "").splitlines():
+        name = line.strip()
+        if name and name not in seen:
+            seen.add(name)
+            out.append(name)
+    return out
+
+
+def load_roster():
+    if not os.path.isfile(MEETING_ROSTER_TXT):
+        try:
+            with open(MEETING_ROSTER_TXT, "w", encoding="utf-8") as wf:
+                wf.write("\n".join(DEFAULT_ROSTER) + "\n")
+        except OSError:
+            return list(DEFAULT_ROSTER)
+        return list(DEFAULT_ROSTER)
+    try:
+        with open(MEETING_ROSTER_TXT, "r", encoding="utf-8") as rf:
+            names = _parse_roster_lines(rf.read())
+        return names if names else list(DEFAULT_ROSTER)
+    except OSError:
+        return list(DEFAULT_ROSTER)
+
+
+def save_roster(names):
+    with open(MEETING_ROSTER_TXT, "w", encoding="utf-8") as wf:
+        wf.write("\n".join(names) + ("\n" if names else ""))
+
+
+def apply_saved_roster_to_session(names):
+    save_roster(names)
+    rset = set(names)
+    st.session_state.participants_ms = sorted(n for n in st.session_state.get("participants_ms", []) if n in rset)
+    st.session_state.absentees_ms = sorted(n for n in st.session_state.get("absentees_ms", []) if n in rset)
+    _p2, _a2 = set(st.session_state.participants_ms), set(st.session_state.absentees_ms)
+    _miss2 = set(names) - _p2 - _a2
+    if _miss2:
+        st.session_state.participants_ms = sorted(_p2 | _miss2)
+
+
+ROSTER = load_roster()
+
+
+def _init_meeting_meta_keys():
+    if "ms_meeting_date" not in st.session_state:
+        st.session_state.ms_meeting_date = datetime.now().date()
+    if "ms_meeting_chair" not in st.session_state:
+        st.session_state.ms_meeting_chair = "李超"
+    if "ms_recorder" not in st.session_state:
+        st.session_state.ms_recorder = ""
+    if "ms_meeting_topic" not in st.session_state:
+        st.session_state.ms_meeting_topic = "日常工作讨论"
+    if "ms_meeting_location" not in st.session_state:
+        st.session_state.ms_meeting_location = ""
+
+
+def _flush_pending_preview_basic():
+    """预览里「保存基本信息」在同一次 run 里不能改已被上方控件占用的 ms_* key，故延后到下一轮最前面写入。"""
+    pending = st.session_state.pop("_pending_preview_basic", None)
+    if pending is None:
+        return False
+    st.session_state.ms_meeting_date = pending["ms_meeting_date"]
+    st.session_state.ms_meeting_chair = pending["ms_meeting_chair"]
+    st.session_state.ms_recorder = pending["ms_recorder"]
+    st.session_state.ms_meeting_topic = pending["ms_meeting_topic"]
+    st.session_state.ms_meeting_location = pending["ms_meeting_location"]
+    return True
+
+
+# 设置页面标题和布局（须为首个 st 调用）
+st.set_page_config(page_title="会议纪要系统", layout="wide")
+_init_meeting_meta_keys()
+_basic_saved_from_preview = _flush_pending_preview_basic()
+st.title(":coffee: 会议纪要系统")
+if _basic_saved_from_preview:
+    st.toast("基本信息已更新")
 
 def _sync_absent_from_participants():
     p = set(st.session_state.get("participants_ms") or [])
@@ -138,59 +128,6 @@ def _ensure_record_ids(recs):
             r["_id"] = str(uuid.uuid4())
 
 
-def topics_to_preview_df(topics_dict):
-    rows = []
-    for topic_name, recs in topics_dict.items():
-        _ensure_record_ids(recs)
-        for r in recs:
-            rows.append(
-                {
-                    "主题": topic_name,
-                    "讨论内容": r.get("task") or "",
-                    "负责人": r.get("person") or "",
-                    "_id": r.get("_id") or "",
-                }
-            )
-    if not rows:
-        return pd.DataFrame(columns=["主题", "讨论内容", "负责人", "_id"])
-    return pd.DataFrame(rows)
-
-
-def preview_df_to_topics(df: pd.DataFrame):
-    """用表格内容覆盖 topics；保留「尚无任何讨论行」的主题（表格里不会出现空主题，否则会被误删）。"""
-    prior = dict(st.session_state.topics)
-    new_topics: dict[str, list] = {}
-    for _, row in df.iterrows():
-        tname = str(row.get("主题") or "").strip()
-        if not tname:
-            continue
-        rid = str(row.get("_id") or "").strip() or str(uuid.uuid4())
-        if tname not in new_topics:
-            new_topics[tname] = []
-        new_topics[tname].append(
-            {
-                "_id": rid,
-                "task": str(row.get("讨论内容") or ""),
-                "person": str(row.get("负责人") or ""),
-                "topic": tname,
-            }
-        )
-
-    for tname, recs in prior.items():
-        if tname not in new_topics and not recs:
-            new_topics[tname] = []
-
-    ordered: dict[str, list] = {}
-    for tname in prior:
-        if tname in new_topics:
-            ordered[tname] = new_topics[tname]
-    for tname in new_topics:
-        if tname not in ordered:
-            ordered[tname] = new_topics[tname]
-
-    st.session_state.topics = ordered
-
-
 def render_meeting_html():
     env = Environment(loader=FileSystemLoader(_BASE_DIR))
     template = env.get_template("template.html")
@@ -201,42 +138,47 @@ with st.sidebar:
     st.header("使用说明")
     st.markdown("""
     1. 填写会议基本信息  
-    2. **参会人员**与**缺席人员**互斥；默认全员参会。从参会中取消某人会自动出现在缺席；从缺席中取消某人会自动回到参会  
-    3. 添加讨论主题后，用主题下的「新增一行」增加空行填写内容，可逐行修改或删除  
-    4. 展开「生成 PDF 前预览」：在下方改基本信息（回车生效）或表格后，上方 HTML 会自动刷新  
+    2. **参会人员**与**缺席人员**互斥；可选名单在侧栏「人员名单库」中维护（`meeting_roster.txt`）  
+    3. 添加讨论主题后，用主题下的「新增一行」增加空行填写内容，可逐行修改或删除；可展开「生成 PDF 前预览」查看版式  
     """)
+    with st.expander("人员名单库（meeting_roster.txt）"):
+        st.caption("一行一人；保存后主页面「参会人员 / 缺席」选项立即更新。")
+        with st.form("meeting_roster_form"):
+            roster_ta = st.text_area(
+                "每行一个姓名",
+                value="\n".join(ROSTER),
+                height=200,
+                help="可增删改姓名；空行忽略；重复只保留首次。",
+            )
+            c1, c2 = st.columns(2)
+            with c1:
+                save_roster_btn = st.form_submit_button("保存名单", type="primary", use_container_width=True)
+            with c2:
+                reset_roster_btn = st.form_submit_button("恢复默认", use_container_width=True)
+        if save_roster_btn:
+            new_names = _parse_roster_lines(roster_ta)
+            if not new_names:
+                st.warning("至少保留一位人员")
+            else:
+                apply_saved_roster_to_session(new_names)
+                st.success("已保存")
+                st.rerun()
+        if reset_roster_btn:
+            apply_saved_roster_to_session(list(DEFAULT_ROSTER))
+            st.success("已恢复默认")
+            st.rerun()
 
 # --- 会议基本信息 ---
 with st.expander("会议基本信息", expanded=True):
     col1, col2 = st.columns(2)
     with col1:
-        st.date_input(
-            "会议日期",
-            key="ms_meeting_date",
-            on_change=_mirror_ms_date_to_prev,
-        )
-        st.text_input(
-            "会议主持人",
-            key="ms_meeting_chair",
-            on_change=_mirror_ms_chair_to_prev,
-        )
+        st.date_input("会议日期", key="ms_meeting_date")
+        st.text_input("会议主持人", key="ms_meeting_chair")
     with col2:
-        st.text_input(
-            "会议记录人",
-            key="ms_recorder",
-            on_change=_mirror_ms_recorder_to_prev,
-        )
-        st.text_input(
-            "会议主题",
-            key="ms_meeting_topic",
-            on_change=_mirror_ms_mtopic_to_prev,
-        )
+        st.text_input("会议记录人", key="ms_recorder")
+        st.text_input("会议主题", key="ms_meeting_topic")
 
-    st.text_input(
-        "会议地点",
-        key="ms_meeting_location",
-        on_change=_mirror_ms_location_to_prev,
-    )
+    st.text_input("会议地点", key="ms_meeting_location")
 
     st.markdown("---")
     st.caption("名单互斥：同一人只会出现在参会或缺席一侧；改任一侧，另一侧会自动同步。")
@@ -245,6 +187,10 @@ with st.expander("会议基本信息", expanded=True):
         st.session_state.absentees_ms = []
     if "participants_ms" not in st.session_state:
         st.session_state.participants_ms = [n for n in ROSTER if n not in st.session_state.absentees_ms]
+    else:
+        _rset = set(ROSTER)
+        st.session_state.participants_ms = sorted(n for n in st.session_state.participants_ms if n in _rset)
+        st.session_state.absentees_ms = sorted(n for n in st.session_state.absentees_ms if n in _rset)
 
     # 保证分区覆盖完整名单且无交集（兼容旧 session）
     _p, _a = set(st.session_state.participants_ms), set(st.session_state.absentees_ms)
@@ -260,14 +206,14 @@ with st.expander("会议基本信息", expanded=True):
         options=list(ROSTER),
         key="participants_ms",
         on_change=_sync_absent_from_participants,
-        help="取消勾选某人后，会自动出现在「缺席人员」中",
+        help="取消勾选某人后，会自动出现在「缺席人员」；可选范围在侧栏「人员名单库」维护",
     )
     st.multiselect(
         "缺席人员",
         options=list(ROSTER),
         key="absentees_ms",
         on_change=_sync_participants_from_absent,
-        help="取消勾选某人后，会自动回到「参会人员」中",
+        help="取消勾选某人后，会自动回到「参会人员」",
     )
 
 # --- 讨论内容（topics -> records，每条含 _id 用于稳定控件 key）---
@@ -380,64 +326,8 @@ def build_meeting_payload():
     }
 
 
-with st.expander("生成 PDF 前预览（版式与 PDF 一致，可在此修改）", expanded=False):
-    preview_html_slot = st.empty()
-    st.caption(
-        "最上方为与 PDF 一致的 HTML 预览（随编辑自动刷新）。"
-        "在下方修改基本信息后按 **回车** 或点击框外失焦即可更新预览；"
-        "表格改动会在每次操作后写回主题数据并刷新预览。"
-    )
-
-    st.markdown("##### 基本信息（预览中修改，与上方区块同步）")
-    pc1, pc2 = st.columns(2)
-    with pc1:
-        st.date_input(
-            "会议日期",
-            key="prev_basic_date",
-            on_change=_mirror_prev_date_to_ms,
-        )
-        st.text_input(
-            "会议主持人",
-            key="prev_basic_chair",
-            on_change=_mirror_prev_chair_to_ms,
-        )
-    with pc2:
-        st.text_input(
-            "会议记录人",
-            key="prev_basic_recorder",
-            on_change=_mirror_prev_recorder_to_ms,
-        )
-        st.text_input(
-            "会议主题",
-            key="prev_basic_mtopic",
-            on_change=_mirror_prev_mtopic_to_ms,
-        )
-    st.text_input(
-        "会议地点",
-        key="prev_basic_location",
-        on_change=_mirror_prev_location_to_ms,
-    )
-
-    st.markdown("##### 讨论内容（表格编辑）")
-    _preview_df = topics_to_preview_df(st.session_state.topics)
-    _edited_preview = st.data_editor(
-        _preview_df,
-        num_rows="dynamic",
-        column_config={
-            "主题": st.column_config.TextColumn("主题", required=True, width="medium"),
-            "讨论内容": st.column_config.TextColumn("讨论内容", width="large"),
-            "负责人": st.column_config.TextColumn("负责人", width="small"),
-            "_id": st.column_config.TextColumn("_id", disabled=True, width="small", help="新增行可留空，保存时自动生成"),
-        },
-        hide_index=True,
-        use_container_width=True,
-        key="meeting_preview_data_editor",
-    )
-    if not _edited_preview.empty:
-        preview_df_to_topics(_edited_preview)
-
-    with preview_html_slot.container():
-        components.html(render_meeting_html(), height=640, scrolling=True)
+with st.expander("生成 PDF 前预览（与 PDF 版式一致）", expanded=False):
+    components.html(render_meeting_html(), height=640, scrolling=True)
 
 
 if st.button("生成PDF文档", type="primary"):
@@ -466,4 +356,4 @@ if st.button("生成PDF文档", type="primary"):
         )
 
 st.markdown("---")
-st.caption("© 2025 会议纪要系统 - 版本 1.5.1")
+st.caption("© 2025 会议纪要系统 - 版本 1.6.2")
