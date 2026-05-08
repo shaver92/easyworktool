@@ -15,13 +15,14 @@
   <p>会议地点：{{ meeting_location }}</p>
   <p>会议主持：{{ meeting_chair }}</p>
   <p>参会人员：{{ participants }}</p>
+  <p>缺席人员：{{ absentees }}</p>
   <p>会议记录人员：{{ recorder }}</p>
   <p>会议议题：{{ meeting_topic }}</p>
   {% for section in sections %}
     <h2>{{ section.topic }}</h2>
     <ul>
       {% for item in section.topic_items %}
-        <li>{{ item.task }}  -- {{ item.person }}</li>
+        <li>{{ item.task }}{% if item.person %} — {{ item.person }}{% endif %}</li>
       {% endfor %}
     </ul>
   {% endfor %}
