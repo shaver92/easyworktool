@@ -122,21 +122,41 @@ class FeishuWebhookHandler(tornado.web.RequestHandler):
         )
 
 
-def patch_streamlit_server():
+WEBHOOK_PATCH_OK = False
+WEBHOOK_PATCH_ERROR = ""
+
+
+def patch_streamlit_server() -> bool:
     """Add Feishu webhook route to Streamlit's internal Tornado server."""
+    global WEBHOOK_PATCH_OK, WEBHOOK_PATCH_ERROR
+
     try:
         from streamlit.web.server import Server
-        server = Server.get_current()
-        if server is None:
-            logger.warning("Cannot get Streamlit server instance")
-            return False
-        app = getattr(server, '_app', None)
-        if app is None:
-            logger.warning("Cannot get Tornado application")
-            return False
-        app.add_handlers(r".*", [(r"/webhook", FeishuWebhookHandler)])
-        logger.info("Feishu webhook handler registered at /webhook")
-        return True
-    except Exception:
-        logger.exception("Failed to patch Streamlit server for webhook")
+    except ImportError as e:
+        WEBHOOK_PATCH_ERROR = f"Import error: {e}"
+        logger.warning(WEBHOOK_PATCH_ERROR)
         return False
+
+    server = Server.get_current()
+    if server is None:
+        WEBHOOK_PATCH_ERROR = "Server.get_current() returned None (app not started yet?)"
+        logger.warning(WEBHOOK_PATCH_ERROR)
+        return False
+
+    tornado_app = getattr(server, '_app', None)
+    if tornado_app is None:
+        WEBHOOK_PATCH_ERROR = "Tornado app not found on server"
+        logger.warning(WEBHOOK_PATCH_ERROR)
+        return False
+
+    try:
+        tornado_app.add_handlers(r".*$", [(r"/webhook", FeishuWebhookHandler)])
+    except Exception as e:
+        WEBHOOK_PATCH_ERROR = f"add_handlers error: {e}"
+        logger.warning(WEBHOOK_PATCH_ERROR)
+        return False
+
+    WEBHOOK_PATCH_OK = True
+    WEBHOOK_PATCH_ERROR = ""
+    logger.info("Feishu webhook registered at /webhook")
+    return True

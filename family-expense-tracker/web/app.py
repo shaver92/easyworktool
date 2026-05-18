@@ -11,7 +11,7 @@ import streamlit.components.v1 as components
 
 from shared.config import load_config, validate_config
 from shared.database import Repository
-from web.webhook_handler import patch_streamlit_server
+from web.webhook_handler import patch_streamlit_server, WEBHOOK_PATCH_OK, WEBHOOK_PATCH_ERROR
 from web.auth import (
     build_oauth_url,
     resolve_feishu_user,
@@ -121,6 +121,15 @@ with st.sidebar:
     if st.button("退出登录"):
         st.session_state.pop("user", None)
         st.rerun()
+
+    # Webhook diagnostics
+    with st.expander("🔧 Bot 状态"):
+        if WEBHOOK_PATCH_OK:
+            st.success("Webhook 已注册: /webhook")
+            st.caption(f"飞书回调地址: {cfg.get('feishu', {}).get('redirect_uri', 'https://...')}webhook")
+        else:
+            st.error(f"Webhook 未注册: {WEBHOOK_PATCH_ERROR or '未知错误'}")
+            st.caption("飞书事件推送将无法接收，消息记账功能不可用。")
 
 if menu == "dashboard":
     render_dashboard(repo, user, cfg)
