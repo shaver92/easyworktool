@@ -1,0 +1,10 @@
+# Secrets
+.env
+.streamlit/secrets.toml
+
+# Python
+__pycache__/
+*.py[cod]
+
+# Database
+data/*.db
