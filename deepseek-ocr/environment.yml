@@ -1,0 +1,11 @@
+# Conda 环境：Python 后端依赖 + Node（前端构建/开发）
+# 使用：conda env create -f environment.yml && conda activate pdf-intel
+name: pdf-intel
+channels:
+  - conda-forge
+dependencies:
+  - python=3.12
+  - pip
+  - nodejs=20
+  - pip:
+      - -r pdf_intel_backend/requirements.txt
