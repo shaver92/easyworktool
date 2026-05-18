@@ -4,19 +4,38 @@ import os
 import tomllib
 from pathlib import Path
 
-from dotenv import load_dotenv
-
 ROOT_DIR = Path(__file__).resolve().parent.parent
 CONFIG_PATH = ROOT_DIR / "config.toml"
 
 
 def load_config() -> dict:
-    load_dotenv(ROOT_DIR / ".env")
+    """Load config from config.toml, then st.secrets (if available), finally env vars."""
     cfg = {}
     if CONFIG_PATH.exists():
         with CONFIG_PATH.open("rb") as f:
             cfg = tomllib.load(f)
+
+    _apply_streamlit_secrets(cfg)
+
+    try:
+        from dotenv import load_dotenv
+        load_dotenv(ROOT_DIR / ".env")
+    except ImportError:
+        pass
+
     return _apply_env_overrides(cfg)
+
+
+def _apply_streamlit_secrets(cfg: dict) -> None:
+    """Merge st.secrets into config dict when running under Streamlit."""
+    try:
+        import streamlit as st
+    except ImportError:
+        return
+
+    for section in ("app", "feishu", "auth"):
+        if section in st.secrets:
+            cfg.setdefault(section, {}).update(dict(st.secrets[section]))
 
 
 def _apply_env_overrides(cfg: dict) -> dict:
