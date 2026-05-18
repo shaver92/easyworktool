@@ -126,26 +126,21 @@ WEBHOOK_PATCH_OK = False
 WEBHOOK_PATCH_ERROR = ""
 
 
+def _find_tornado_app():
+    """Find the running Tornado Application in the current process."""
+    import gc
+    from tornado.web import Application
+    apps = [obj for obj in gc.get_objects() if isinstance(obj, Application)]
+    return apps[0] if apps else None
+
+
 def patch_streamlit_server() -> bool:
     """Add Feishu webhook route to Streamlit's internal Tornado server."""
     global WEBHOOK_PATCH_OK, WEBHOOK_PATCH_ERROR
 
-    try:
-        from streamlit.web.server import Server
-    except ImportError as e:
-        WEBHOOK_PATCH_ERROR = f"Import error: {e}"
-        logger.warning(WEBHOOK_PATCH_ERROR)
-        return False
-
-    server = Server.get_current()
-    if server is None:
-        WEBHOOK_PATCH_ERROR = "Server.get_current() returned None (app not started yet?)"
-        logger.warning(WEBHOOK_PATCH_ERROR)
-        return False
-
-    tornado_app = getattr(server, '_app', None)
+    tornado_app = _find_tornado_app()
     if tornado_app is None:
-        WEBHOOK_PATCH_ERROR = "Tornado app not found on server"
+        WEBHOOK_PATCH_ERROR = "No Tornado Application found in process"
         logger.warning(WEBHOOK_PATCH_ERROR)
         return False
 
