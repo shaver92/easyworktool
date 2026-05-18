@@ -11,6 +11,7 @@ import streamlit.components.v1 as components
 
 from shared.config import load_config, validate_config
 from shared.database import Repository
+from web.webhook_handler import patch_streamlit_server
 from web.auth import (
     build_oauth_url,
     resolve_feishu_user,
@@ -26,6 +27,10 @@ from web.pages.dashboard import render_dashboard
 from web.pages.expense_form import render_expense_form, render_categories, render_budget
 
 st.set_page_config(page_title="家庭记账", page_icon="💰", layout="wide")
+
+# Register Feishu webhook handler on Streamlit's internal Tornado server
+# so we can receive Feishu event callbacks without a separate bot deployment.
+patch_streamlit_server()
 
 cfg = load_config()
 cfg_warnings = validate_config(cfg)
